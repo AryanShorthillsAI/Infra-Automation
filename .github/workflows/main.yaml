@@ -1,0 +1,60 @@
+name: Terraform Deploy EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'ap-south-1'
+      ami_id:
+        description: 'AMI ID'
+        required: true
+      instance_type:
+        description: 'Instance Type'
+        required: true
+        default: 't2.micro'
+      volume_size:
+        description: 'Volume Size (GB)'
+        required: true
+        default: '8'
+      key_name:
+        description: 'EC2 Key Pair Name'
+        required: true
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ github.event.inputs.region }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: Terraform Plan
+      run: |
+        terraform plan \
+          -var="region=${{ github.event.inputs.region }}" \
+          -var="ami_id=${{ github.event.inputs.ami_id }}" \
+          -var="instance_type=${{ github.event.inputs.instance_type }}" \
+          -var="volume_size=${{ github.event.inputs.volume_size }}" \
+          -var="key_name=${{ github.event.inputs.key_name }}" \
+          -out=tfplan
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve tfplan
